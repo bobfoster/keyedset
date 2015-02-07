@@ -498,4 +498,20 @@ public class TestKeyedSet extends TestCase {
 		checkHeight(seta);
 		checkHeight(setb);
 	}
+	
+	public void testUnion() {
+		KeyedSet<Integer,WrapInt> seta = makeWraps(100,1);
+		// even integers
+		KeyedSet<Integer,WrapInt> setb = makeWraps(100,2);
+		// odd integers
+		KeyedSet<Integer,WrapInt> setc = seta.difference(setb);
+		assertTrue(setb.size() == setc.size());
+		
+		KeyedSet<Integer,WrapInt> setd = setb.union(setc);
+		int setaSize = seta.size();
+		int setbSize = setb.size();
+		int setcSize = setc.size();
+		int setdSize = setd.size();
+		assertTrue(setd.size() == seta.size());
+	}
 }

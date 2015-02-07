@@ -29,6 +29,7 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
+import org.genantics.seq.IgnoreCloseReceiver;
 import org.genantics.seq.Receiver;
 import org.genantics.seq.ReversableSequence;
 import org.genantics.seq.Sequence;
@@ -762,6 +763,21 @@ public class KeyedSet<K extends Comparable<K>, T extends Keyed<K>>
 		return tree;
 	}
 	
+	private class UnionReceiver extends IgnoreCloseReceiver<T> {
+		private KeyedSet<K,T> set;
+		
+		public UnionReceiver(KeyedSet<K,T> set) {
+			this.set = set;
+		}
+		public boolean receive(T t) {
+			set = set.add(t);
+			return true;
+		}
+		public Object value() {
+			return set;
+		}
+	}
+	
 	/**
 	 * Add all elements in iterable to tree.
 	 * 
@@ -769,22 +785,18 @@ public class KeyedSet<K extends Comparable<K>, T extends Keyed<K>>
 	 * @return new tree containing the elements
 	 */
 	public KeyedSet<K,T> union(KeyedSet<K,T> other) {
-		// bound is O(from.size*log(to.size)), where from smaller than to
 		if (height > (other.height << 1)) {
 			// height >> other.height - O(|other|*log(|this|))
-			KeyedSet<K,T> set = this;
-			for (T t : other) {
-				set.add(t);
-			}
-			return set;
+			
+			return (KeyedSet<K,T>) other.seq(new UnionReceiver(this));
 		} else if (other.height > (height << 1)) {
+			
 			// other.height >> height - O(|this|*log(|other|))
-			KeyedSet<K,T> set = other;
-			for (T t : this) {
-				set.add(t);
-			}
-			return set;
+			return (KeyedSet<K,T>) seq(new UnionReceiver(other));
 		} else {
+			
+			// TODO - at what size sets is this faster?
+			
 			// roughly the same size - O(|this|+|other|)
 			List<T> a = toSortedList();
 			List<T> b = other.toSortedList();
@@ -800,7 +812,6 @@ public class KeyedSet<K extends Comparable<K>, T extends Keyed<K>>
 		int blen = b.size();
 		int ai = 0;
 		int bi = 0;
-		int mi = 0;
 		T at = ai < alen ? a.get(ai) : null;
 		T bt = bi < blen ? b.get(bi) : null;
 		while (at != null && bt != null) {
@@ -826,7 +837,7 @@ public class KeyedSet<K extends Comparable<K>, T extends Keyed<K>>
 			merged.add(a.get(bi++));
 		}
 		// treeify
-		return treeify(merged, 0, mi);
+		return treeify(merged, 0, merged.size());
 	}
 	
 	/**
@@ -907,8 +918,8 @@ public class KeyedSet<K extends Comparable<K>, T extends Keyed<K>>
 	}
 		
 	/**
-	 * Subtract all elements in iterable from tree. If no elements
-	 * are in iterable, return this.
+	 * Remove all elements in iterable from tree.
+	 * 
 	 * @param elements to add
 	 * @return new tree containing the elements
 	 */
@@ -921,8 +932,8 @@ public class KeyedSet<K extends Comparable<K>, T extends Keyed<K>>
 	}
 	
 	/**
-	 * Remove all elements not in other tree. If all elements are
-	 * in other, return this.
+	 * Remove all elements not in iterable.
+	 * 
 	 * @param other tree
 	 * @return tree not containing elements not in other
 	 */
@@ -936,33 +947,44 @@ public class KeyedSet<K extends Comparable<K>, T extends Keyed<K>>
 		return tree;
 	}
 	
+	private class IntersectReceiver extends IgnoreCloseReceiver<T> {
+		private final KeyedSet<K, T> check;
+		private KeyedSet<K,T> set = EMPTY;
+
+		public IntersectReceiver(KeyedSet<K,T> check) {
+			this.check = check;
+		}
+		public boolean receive(T t) {
+			if (check.contains(t)) {
+				set = set.add(t);
+			}
+			return true;
+		}
+		public Object value() {
+			return set;
+		}
+	}
+	
 	/**
-	 * Remove all elements not in other tree. If all elements are
-	 * in other, return this.
+	 * Remove all elements not in other tree.
 	 * 
 	 * @param other tree
 	 * @return tree containing only elements also in other
 	 */
-	public KeyedSet<K,T> intersection(KeyedSet<K,T> other) {
-		KeyedSet<K,T> tree = EMPTY;
+	public KeyedSet<K,T> intersection(final KeyedSet<K,T> other) {
 		// bound is O(from.size*log(to.size)), where from smaller than to
 		if (height > (other.height << 1)) {
+			
 			// height >> other.height - O(|other|*log(|this|))
-			for (T t : other) {
-				if (contains(t)) {
-					tree = tree.add(t);
-				}
-			}
-			return tree;
+			return (KeyedSet<K,T>) other.seq(new IntersectReceiver(this));
 		} else if (other.height > (height << 1)) {
+			
 			// other.height >> height - O(|this|*log(|other|))
-			for (T t : this) {
-				if (other.contains(t)) {
-					tree = tree.add(t);
-				}
-			}
-			return tree;
+			return (KeyedSet<K,T>) seq(new IntersectReceiver(other));
 		} else {
+			
+			// TODO - at what size sets is this faster?
+			
 			// roughly the same size - O(|this|+|other|)
 			List<T> a = toSortedList();
 			List<T> b = other.toSortedList();
@@ -1342,6 +1364,22 @@ public class KeyedSet<K extends Comparable<K>, T extends Keyed<K>>
 		public Object rev(Receiver<T> receiver) {
 			receiver.close();
 			return receiver.value();
+		}
+		@Override
+		public KeyedSet<K,T> union(Iterable<T> elements) {
+			return new KeyedSet<K,T>(elements);
+		}
+		@Override
+		public KeyedSet<K,T> union(KeyedSet<K,T> other) {
+			return other;
+		}
+		@Override
+		public KeyedSet<K,T> intersection(Iterable<T> other) {
+			return this;
+		}
+		@Override
+		public KeyedSet<K,T> intersection(final KeyedSet<K,T> other) {
+			return this;
 		}
 		@Override
 		public Iterator<T> iterator() {
