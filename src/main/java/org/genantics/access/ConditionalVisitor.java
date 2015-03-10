@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright 2015 bobfoster.
+ * Copyright 2015 Bob Foster.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,28 +22,20 @@
  * THE SOFTWARE.
  */
 
-package org.genantics.seq;
-
-import java.util.HashSet;
+package org.genantics.access;
 
 /**
- * Receiver converts sequence to Set. The result set is a HashSet<T>.
+ * Conditional visitor.
  * 
- * @author Bob Foster
+ * @author bobfoster
  */
-public class ToSet<T> implements FinalReceiver<T> {
-	HashSet<T> set = new HashSet<T>();
-
-	public boolean receive(T t) {
-		set.add(t);
-		return true;
-	}
-
-	public void close() {
-	}
-
-	public Object value() {
-		return set;
-	}
-
+public interface ConditionalVisitor<V> {
+	
+	/**
+	 * Visit an element.
+	 * 
+	 * @param element the element to visit
+	 * @return true if wish to visit more elements; otherwise, false
+	 */
+	boolean visit(V element);
 }

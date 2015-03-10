@@ -22,12 +22,17 @@
  * THE SOFTWARE.
  */
 
-package org.genantics.keyedset;
+package org.genantics.set;
 
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.Iterator;
 import junit.framework.TestCase;
-import org.genantics.keyedset.KeyedSet.Tester;
+import org.genantics.access.ConditionalVisitor;
+import org.genantics.access.Filter;
+import org.genantics.access.Visitor;
+import org.genantics.set.Keyed;
+import org.genantics.set.KeyedSet;
 
 /**
  *
@@ -392,13 +397,13 @@ public class TestKeyedSet extends TestCase {
 		assertTrue(wrapSet.isBalanced());
 	}
 	
-	public void testDifference() {
+	public void testRemoveAll() {
 		// All integers 0..99
 		KeyedSet<Integer,Element<Integer,String>> seta = makeElements(100, 1);
 		// All even integers 0..99
 		KeyedSet<Integer,Element<Integer,String>> setb = makeElements(100, 2);
 		// All odd integers 0..99
-		KeyedSet<Integer,Element<Integer,String>> setc = seta.difference(setb);
+		KeyedSet<Integer,Element<Integer,String>> setc = seta.removeAll(setb);
 		assertTrue(setc.size() == 50);
 		for (int i = 0; i < 100; i++) {
 			if ((i & 1) == 0) {
@@ -412,7 +417,7 @@ public class TestKeyedSet extends TestCase {
 		
 		// some other iterable
 		ArrayList<Element<Integer,String>> primes = primeElements(100);
-		KeyedSet<Integer,Element<Integer,String>> setd = setc.difference(primes);
+		KeyedSet<Integer,Element<Integer,String>> setd = setc.removeAll(primes);
 		// except for 2, all values in primes should have been in setc
 		assertTrue(setd.size() == setc.size() - primes.size() + 1);
 		for (Element<Integer,String> p : primes) {
@@ -474,17 +479,33 @@ public class TestKeyedSet extends TestCase {
 		assertTrue(seta.getHeight() == 0);
 		assertTrue(seta.size() == 0);
 		assertTrue(seta.clear() == seta);
-		KeyedSet<Integer,WrapInt> setb = seta.union(KeyedSet.EMPTY);
+		KeyedSet<Integer,WrapInt> setb = seta.addAll(KeyedSet.EMPTY);
 		assertTrue(setb == KeyedSet.EMPTY);
-		setb = seta.intersection(KeyedSet.EMPTY);
+		setb = seta.retainAll(KeyedSet.EMPTY);
 		assertTrue(setb == KeyedSet.EMPTY);
+	}
+	
+	public void testRemove() {
+		KeyedSet<Integer,Element<Integer,String>> seta = makeElements(100,1);
+		KeyedSet<Integer,Element<Integer,String>> setb = makeElements(100, 2);
+		KeyedSet<Integer,Element<Integer,String>> setc = seta;
+		for (Element<Integer,String> e : setb) {
+			setc = setc.remove(e);
+		}
+		assertTrue(setc.size() == seta.size() / 2);
+		assertTrue(setc.size() == setb.size());
+		for (Element<Integer,String> e : setb) {
+			assertFalse(setc.contains(e));
+		}
+		setc = setc.remove(makeElement(100));
+		assertTrue(setc.size() == setb.size());
 	}
 	
 	public void testFilter() {
 		KeyedSet<Integer,WrapInt> seta = makeWraps(100,1);
 		final HashSet<Integer> primes = new HashSet(primes(100));
-		KeyedSet<Integer,WrapInt> setb = seta.filter(new Tester<WrapInt>() {
-			public boolean test(WrapInt element) {
+		KeyedSet<Integer,WrapInt> setb = seta.filter(new Filter<WrapInt>() {
+			public boolean accept(WrapInt element) {
 				return !primes.contains(element.getKey());
 			}
 		});
@@ -500,18 +521,162 @@ public class TestKeyedSet extends TestCase {
 	}
 	
 	public void testUnion() {
-		KeyedSet<Integer,WrapInt> seta = makeWraps(100,1);
+		KeyedSet<Integer,Element<Integer,String>> seta = makeElements(100,1);
 		// even integers
-		KeyedSet<Integer,WrapInt> setb = makeWraps(100,2);
-		// odd integers
-		KeyedSet<Integer,WrapInt> setc = seta.difference(setb);
-		assertTrue(setb.size() == setc.size());
-		
-		KeyedSet<Integer,WrapInt> setd = setb.union(setc);
+		KeyedSet<Integer,Element<Integer,String>> setb = makeElements(100,2);
 		int setaSize = seta.size();
 		int setbSize = setb.size();
+		// odd integers
+		KeyedSet<Integer,Element<Integer,String>> setc = seta.removeAll(setb);
 		int setcSize = setc.size();
+		assertTrue(setb.size() == setc.size());
+		
+		KeyedSet<Integer,Element<Integer,String>> setd = setb.addAll(setc);
 		int setdSize = setd.size();
 		assertTrue(setd.size() == seta.size());
+	}
+	
+	public void testIterator() {
+		KeyedSet<Integer,Element<Integer,String>> set = makeElements(100,2);
+		int i = 0;
+		int last = -1;
+		for (Iterator<Element<Integer,String>> it = set.iterator(); it.hasNext();) {
+			i++;
+			Element<Integer,String> next = it.next();
+			assert(set.contains(next));
+			int key = next.getKey();
+			assertTrue(key > last);
+			last = key;
+		}
+		assertTrue(i == set.size());
+		KeyedSet<Integer,Element<Integer,String>> empty = KeyedSet.EMPTY;
+		Iterator<Element<Integer,String>> it = empty.iterator();
+		assertFalse(it.hasNext());
+	}
+	
+	public void testReverseIterator() {
+		KeyedSet<Integer,Element<Integer,String>> set = makeElements(100,2);
+		int i = 0;
+		int last = 100;
+		for (Iterator<Element<Integer,String>> it = set.reverseIterator(); it.hasNext();) {
+			i++;
+			Element<Integer,String> next = it.next();
+			assert(set.contains(next));
+			int key = next.getKey();
+			assertTrue(key < last);
+			last = key;
+		}
+		assertTrue(i == set.size());
+		KeyedSet<Integer,Element<Integer,String>> empty = KeyedSet.EMPTY;
+		Iterator<Element<Integer,String>> it = empty.reverseIterator();
+		assertFalse(it.hasNext());
+	}
+	
+	private class FwdVisitor implements Visitor<Element<Integer,String>> {
+
+		int count = 0;
+		int lastKey = -1;
+		
+		public void visit(Element<Integer, String> element) {
+			count++;
+			int key = element.getKey();
+			assertTrue(lastKey < key);
+			lastKey = key;
+		}
+		
+	}
+	
+	public void testVisitFwd() {
+		KeyedSet<Integer,Element<Integer,String>> set = makeElements(100,2);
+		FwdVisitor visitor = new FwdVisitor();
+		set.visitFwd(visitor);
+		assertTrue(visitor.count == set.size());
+	}
+	
+	private class FwdConditionalVisitor implements ConditionalVisitor<Element<Integer,String>> {
+
+		int count = 0;
+		int lastKey = -1;
+		int findKey;
+		
+		public FwdConditionalVisitor(int findKey) {
+			this.findKey = findKey;
+		}
+		
+		public boolean visit(Element<Integer, String> element) {
+			count++;
+			int key = element.getKey();
+			assertTrue(lastKey < key);
+			lastKey = key;
+			return key == findKey;
+		}
+		
+	}
+	
+	public void testVisitFwdConditional() {
+		KeyedSet<Integer,Element<Integer,String>> set = makeElements(100,2);
+		FwdConditionalVisitor visitor = new FwdConditionalVisitor(-1);
+		assertFalse(set.visitFwd(visitor));
+		assertTrue(visitor.count == set.size());
+		FwdConditionalVisitor visitor2 = new FwdConditionalVisitor(0);
+		assertTrue(set.visitFwd(visitor2));
+		assertTrue(visitor2.count == 1);
+		FwdConditionalVisitor visitor3 = new FwdConditionalVisitor(98);
+		assertTrue(set.visitFwd(visitor3));
+		assertTrue(visitor3.count == 50);
+	}
+	
+	private class RevVisitor implements Visitor<Element<Integer,String>> {
+
+		int count = 0;
+		int lastKey = 100;
+		
+		public void visit(Element<Integer, String> element) {
+			count++;
+			int key = element.getKey();
+			assertTrue(key < lastKey);
+			lastKey = key;
+		}
+		
+	}
+	
+	public void testVisitRev() {
+		KeyedSet<Integer,Element<Integer,String>> set = makeElements(100,2);
+		RevVisitor visitor = new RevVisitor();
+		set.visitRev(visitor);
+		assertTrue(visitor.count == set.size());
+	}
+	
+	private class RevConditionalVisitor implements ConditionalVisitor<Element<Integer,String>> {
+
+		int count = 0;
+		int lastKey = 100;
+		int findKey;
+		
+		public RevConditionalVisitor(int findKey) {
+			this.findKey = findKey;
+		}
+		
+		public boolean visit(Element<Integer, String> element) {
+			count++;
+			int key = element.getKey();
+			assertTrue(key < lastKey);
+			lastKey = key;
+			return key == findKey;
+		}
+		
+	}
+	
+	public void testVisitRevConditional() {
+		KeyedSet<Integer,Element<Integer,String>> set = makeElements(100,2);
+		RevConditionalVisitor visitor = new RevConditionalVisitor(-1);
+		assertFalse(set.visitRev(visitor));
+		assertTrue(visitor.count == set.size());
+		RevConditionalVisitor visitor2 = new RevConditionalVisitor(0);
+		assertTrue(set.visitRev(visitor2));
+		assertTrue(visitor2.count == 50);
+		RevConditionalVisitor visitor3 = new RevConditionalVisitor(98);
+		assertTrue(set.visitRev(visitor3));
+		assertTrue(visitor3.count == 1);
 	}
 }

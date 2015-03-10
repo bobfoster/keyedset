@@ -22,29 +22,13 @@
  * THE SOFTWARE.
  */
 
-package org.genantics.seq;
+package org.genantics.set;
 
 /**
+ * Interface implemented by KeyedSet elements.
  *
- * @author Bob Foster
+ * @author bobfoster
  */
-public class Filter<T> extends DefaultPipeline<T,T> {
-	private Selector f;
-	
-	public interface Selector<T> {
-		boolean select(T t);
-	}
-	
-	public Filter(Selector f, Receiver<T> next) {
-		super(next);
-		this.f = f;
-	}
-
-	@Override
-	public boolean receive(T t) {
-		if (f.select(t)) {
-			return next.receive(t);
-		}
-		return true;
-	}
+public interface Keyed<T extends Comparable<T>> {
+	T getKey();
 }

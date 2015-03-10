@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright 2015 bobfoster.
+ * Copyright 2015 Bob Foster.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,30 +22,20 @@
  * THE SOFTWARE.
  */
 
-package org.genantics.seq;
+package org.genantics.array;
+
+import org.genantics.access.Access;
+import org.genantics.array.Array;
 
 /**
- * Map sequence using a mapping function.
- * 
- * <p>Map maps each incoming value to a potentially different value with
- * a possibly different type.
  * 
  * @author bobfoster
  */
-public class Map<T,S> extends DefaultPipeline<T,S> {
+public interface IndexedAccess<V> extends Access<V> {
 	
-	private Mapper<T,S> f;
+	V get(int i);
 	
-	public interface Mapper<T,S> {
-		S map(T t);
-	}
+	Array<V> set(int i, V value);
 	
-	public Map(Mapper f, Receiver<S> next) {
-		super(next);
-		this.f = f;
-	}
-
-	public boolean receive(T t) {
-		return next.receive(f.map(t));
-	}
+	int find(V value);
 }

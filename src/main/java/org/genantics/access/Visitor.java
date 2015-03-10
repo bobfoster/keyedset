@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright 2015 bobfoster.
+ * Copyright 2015 Bob Foster.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,35 +22,12 @@
  * THE SOFTWARE.
  */
 
-package org.genantics.seq;
+package org.genantics.access;
 
 /**
- * Reduces a sequence starting from an initial value using a reducing
- * function.
- * 
- * @author Bob Foster
+ *
+ * @author bobfoster
  */
-public class Reduce<T,R> implements FinalReceiver<T> {
-	private Reducer<R,T> f;
-	private R r;
-	
-	public interface Reducer<R,T> {
-		R reduce(R r, T t);
-	}
-	public Reduce(R initialValue, Reducer<R,T> f) {
-		this.r = initialValue;
-		this.f = f;
-	}
-	public boolean receive(T t) {
-		r = f.reduce(r, t);
-		return true;
-	}
-
-	public void close() {
-	}
-
-	public Object value() {
-		return r;
-	}
-
+public interface Visitor<V> {
+	void visit(V element);
 }

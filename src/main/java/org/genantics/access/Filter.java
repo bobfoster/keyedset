@@ -1,7 +1,7 @@
 /*
  * The MIT License
  *
- * Copyright 2015 bobfoster.
+ * Copyright 2015 Bob Foster.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -22,13 +22,12 @@
  * THE SOFTWARE.
  */
 
-package org.genantics.seq;
+package org.genantics.access;
 
 /**
- * The final receiver in a pipeline.
- * 
- * @author Bob Foster
+ *
+ * @author bobfoster
  */
-public interface FinalReceiver<T> extends Receiver<T> {
-
+public interface Filter<T> {
+	boolean accept(T t);
 }

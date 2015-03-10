@@ -22,26 +22,38 @@
  * THE SOFTWARE.
  */
 
-package org.genantics.keyedset;
+package org.genantics.list;
 
-import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Iterator;
-import java.util.List;
 import java.util.NoSuchElementException;
+import org.genantics.access.ConditionalVisitor;
+import org.genantics.access.Visitor;
 
 /**
  * Classical immutable list.
  * 
+ * Use null for nil.
+ * 
  * @author bobfoster
  * @param <V> list element type
  */
-public class ConsList<V> {
+public class ConsList<V> implements CList<V> {
 	V element;
 	ConsList<V> next;
 	
 	public ConsList(V element, ConsList<V> next) {
 		this.element = element;
 		this.next = next;
+	}
+	public ConsList<V> cons(V element) {
+		return new ConsList(element, this);
+	}
+	public V head() {
+		return element;
+	}
+	public CList<V> tail() {
+		return next;
 	}
 	public boolean contains(V value) {
 		if (element.equals(value)) {
@@ -50,12 +62,6 @@ public class ConsList<V> {
 			return next.contains(value);
 		}
 		return false;
-	}
-	public V head() {
-		return element;
-	}
-	public ConsList<V> tail() {
-		return next;
 	}
 	public String toString() {
 		StringBuilder sb = new StringBuilder();
@@ -71,16 +77,47 @@ public class ConsList<V> {
 			next.toString(sb);
 		}
 	}
-	public List<V> toList() {
-		List<V> list = new ArrayList<V>();
-		toList(list);
-		return list;
-	}
-	private void toList(List<V> list) {
-		list.add(element);
-		if (next != null) {
-			next.toList(list);
+	public void toCollection(Collection<V> collection) {
+		for (ConsList<V> list = this; list != null; list = list.next) {
+			collection.add(element);
 		}
+	}
+
+	public void visit(Visitor<V> visitor) {
+		throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+	}
+
+	public boolean visit(ConditionalVisitor<V> visitor) {
+		throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+	}
+
+	public boolean isEmpty() {
+		return false;
+	}
+
+	/**
+	 * Return the number of elements in the list. Note this is an O(n) operation.
+	 * If possible, use <code>isEmpty()</code> instead.
+	 * @return list size
+	 */
+	public int size() {
+		int size = 0;
+		for (CList list = this; !list.isEmpty(); list = list.tail()) {
+			size++;
+		}
+		return size;
+	}
+
+	public Iterator<V> reverseIterator() {
+		throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+	}
+
+	public void reverseVisit(Visitor<V> visitor) {
+		throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+	}
+
+	public boolean reverseVisit(ConditionalVisitor<V> visitor) {
+		throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
 	}
 	private static class ConsListIterator<V> implements Iterator<V> {
 		ConsList<V> list;
@@ -97,7 +134,7 @@ public class ConsList<V> {
 				throw new NoSuchElementException();
 			}
 			V head = (V) list.head();
-			list = list.tail();
+			list = list.next;
 			return head;
 		}
 		@Override
